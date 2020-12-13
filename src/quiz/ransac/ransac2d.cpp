@@ -10,38 +10,36 @@
 pcl::PointCloud<pcl::PointXYZ>::Ptr CreateData()
 {
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
-  	// Add inliers
-  	float scatter = 0.6;
-  	for(int i = -5; i < 5; i++)
-  	{
-  		double rx = 2*(((double) rand() / (RAND_MAX))-0.5);
-  		double ry = 2*(((double) rand() / (RAND_MAX))-0.5);
-  		pcl::PointXYZ point;
-  		point.x = i+scatter*rx;
-  		point.y = i+scatter*ry;
-  		point.z = 0;
+	// Add inliers
+	float scatter = 0.6;
+	for (int i = -5; i < 5; i++)
+	{
+		double rx = 2 * (((double)rand() / (RAND_MAX)) - 0.5);
+		double ry = 2 * (((double)rand() / (RAND_MAX)) - 0.5);
+		pcl::PointXYZ point;
+		point.x = i + scatter * rx;
+		point.y = i + scatter * ry;
+		point.z = 0;
 
-  		cloud->points.push_back(point);
-  	}
-  	// Add outliers
-  	int numOutliers = 10;
-  	while(numOutliers--)
-  	{
-  		double rx = 2*(((double) rand() / (RAND_MAX))-0.5);
-  		double ry = 2*(((double) rand() / (RAND_MAX))-0.5);
-  		pcl::PointXYZ point;
-  		point.x = 5*rx;
-  		point.y = 5*ry;
-  		point.z = 0;
+		cloud->points.push_back(point);
+	}
+	// Add outliers
+	int numOutliers = 10;
+	while (numOutliers--)
+	{
+		double rx = 2 * (((double)rand() / (RAND_MAX)) - 0.5);
+		double ry = 2 * (((double)rand() / (RAND_MAX)) - 0.5);
+		pcl::PointXYZ point;
+		point.x = 5 * rx;
+		point.y = 5 * ry;
+		point.z = 0;
 
-  		cloud->points.push_back(point);
+		cloud->points.push_back(point);
+	}
+	cloud->width = cloud->points.size();
+	cloud->height = 1;
 
-  	}
-  	cloud->width = cloud->points.size();
-  	cloud->height = 1;
-
-  	return cloud;
-
+	return cloud;
 }
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr CreateData3D()
@@ -50,77 +48,100 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr CreateData3D()
 	return pointProcessor.loadPcd("../../../sensors/data/pcd/simpleHighway.pcd");
 }
 
-
 pcl::visualization::PCLVisualizer::Ptr initScene()
 {
-	pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer ("2D Viewer"));
-	viewer->setBackgroundColor (0, 0, 0);
-  	viewer->initCameraParameters();
-  	viewer->setCameraPosition(0, 0, 15, 0, 1, 0);
-  	viewer->addCoordinateSystem (1.0);
-  	return viewer;
+	pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("2D Viewer"));
+	viewer->setBackgroundColor(0, 0, 0);
+	viewer->initCameraParameters();
+	viewer->setCameraPosition(0, 0, 15, 0, 1, 0);
+	viewer->addCoordinateSystem(1.0);
+	return viewer;
 }
 
 std::unordered_set<int> Ransac(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int maxIterations, float distanceTol)
 {
 	std::unordered_set<int> inliersResult;
 	srand(time(NULL));
-	
+
 	// TODO: Fill in this function
 
-	// For max iterations 
+	// For max iterations
+	while (maxIterations--)
+	{
+		// Randomly sample subset and fit line
 
-	// Randomly sample subset and fit line
+		std::unordered_set<int> inliers;
+		pcl::PointXYZ point_1 = cloud->points[rand() % cloud->points.size()];
+		pcl::PointXYZ point_2 = cloud->points[rand() % cloud->points.size()];
+		pcl::PointXYZ point_3 = cloud->points[rand() % cloud->points.size()];
 
-	// Measure distance between every point and fitted line
-	// If distance is smaller than threshold count it as inlier
+		float A = (point_2.y - point_1.y) * (point_3.z - point_1.z) - (point_2.z - point_1.z) * (point_3.y - point_1.y);
+		float B = (point_2.z - point_1.z) * (point_3.x - point_1.x) - (point_2.x - point_1.x) * (point_3.z - point_1.z);
+		float C = (point_2.x - point_1.x) * (point_3.y - point_1.y) - (point_2.y - point_1.y) * (point_3.x - point_1.x);
+		float D = -(A * point_1.x + B * point_1.y + C * point_1.z);
 
-	// Return indicies of inliers from fitted line with most inliers
-	
+		// Measure distance between every point and fitted line
+		for (int index = 0; index < cloud->points.size(); index++)
+		{
+			pcl::PointXYZ point_4 = cloud->points[index];
+			if ((point_4.x == point_1.x && point_4.y == point_1.y && point_4.z == point_1.z) || (point_4.x == point_2.x && point_4.y == point_2.y && point_4.y == point_2.z) || (point_4.x == point_3.x && point_4.y == point_3.y && point_4.y == point_3.z))
+			{
+				inliers.insert(index);
+				continue;
+			}
+
+			float distance = fabs(A * point_4.x + B * point_4.y + C * point_4.z + D) / sqrt(A * A + B * B + C * C);
+
+			// If distance is smaller than threshold count it as inlier
+			if (distance < distanceTol)
+				inliers.insert(index);
+		}
+
+		// Return indicies of inliers from fitted line with most inliers
+		if (inliers.size() > inliersResult.size())
+			inliersResult = inliers;
+	}
+
 	return inliersResult;
-
 }
 
-int main ()
+int main()
 {
 
 	// Create viewer
 	pcl::visualization::PCLVisualizer::Ptr viewer = initScene();
 
 	// Create data
-	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud = CreateData();
-	
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud = CreateData3D();
 
 	// TODO: Change the max iteration and distance tolerance arguments for Ransac function
-	std::unordered_set<int> inliers = Ransac(cloud, 0, 0);
+	std::unordered_set<int> inliers = Ransac(cloud, 50, 0.2);
 
-	pcl::PointCloud<pcl::PointXYZ>::Ptr  cloudInliers(new pcl::PointCloud<pcl::PointXYZ>());
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloudInliers(new pcl::PointCloud<pcl::PointXYZ>());
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOutliers(new pcl::PointCloud<pcl::PointXYZ>());
 
-	for(int index = 0; index < cloud->points.size(); index++)
+	for (int index = 0; index < cloud->points.size(); index++)
 	{
 		pcl::PointXYZ point = cloud->points[index];
-		if(inliers.count(index))
+		if (inliers.count(index))
 			cloudInliers->points.push_back(point);
 		else
 			cloudOutliers->points.push_back(point);
 	}
 
-
 	// Render 2D point cloud with inliers and outliers
-	if(inliers.size())
+	if (inliers.size())
 	{
-		renderPointCloud(viewer,cloudInliers,"inliers",Color(0,1,0));
-  		renderPointCloud(viewer,cloudOutliers,"outliers",Color(1,0,0));
+		renderPointCloud(viewer, cloudInliers, "inliers", Color(0, 1, 0));
+		renderPointCloud(viewer, cloudOutliers, "outliers", Color(1, 0, 0));
 	}
-  	else
-  	{
-  		renderPointCloud(viewer,cloud,"data");
-  	}
-	
-  	while (!viewer->wasStopped ())
-  	{
-  	  viewer->spinOnce ();
-  	}
-  	
+	else
+	{
+		renderPointCloud(viewer, cloud, "data");
+	}
+
+	while (!viewer->wasStopped())
+	{
+		viewer->spinOnce();
+	}
 }

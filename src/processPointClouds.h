@@ -18,6 +18,7 @@
 #include <ctime>
 #include <chrono>
 #include "render/box.h"
+#include "kdtree.h"
 
 template<typename PointT>
 class ProcessPointClouds {
@@ -45,6 +46,14 @@ public:
     typename pcl::PointCloud<PointT>::Ptr loadPcd(std::string file);
 
     std::vector<boost::filesystem::path> streamPcd(std::string dataPath);
-  
+
+    std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> SegmentPlaneRansac(typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations, float distanceTol);
+
+    void Proximity(int ind, typename pcl::PointCloud<PointT>::Ptr cloud, pcl::PointIndices& cluster, std::vector<bool>& processed, kdtree* tree, float distanceTol);
+
+    std::vector<pcl::PointIndices> euclideanCluster(typename pcl::PointCloud<PointT>::Ptr cloud, kdtree* tree, float distanceTol);
+
+    std::vector<typename pcl::PointCloud<PointT>::Ptr> myClustering(typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance, int minSize, int maxSize);
+
 };
 #endif /* PROCESSPOINTCLOUDS_H_ */
